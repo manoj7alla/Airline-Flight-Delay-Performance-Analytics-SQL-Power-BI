@@ -1,0 +1,203 @@
+CREATE DATABASE Airline_delay_analysis;
+USE Airline_delay_analysis;
+
+#1. Total Flights Operated
+SELECT COUNT(*) AS total_flights
+FROM flights;
+
+#2. Total Cancelled Flights
+SELECT COUNT(*) AS cancelled_flights
+FROM flights
+WHERE CANCELLED = 1;
+
+#3. Cancellation Rate
+SELECT
+ROUND(
+100.0 * SUM(CANCELLED) / COUNT(*),
+2
+) AS cancellation_rate
+FROM flights;
+
+#4. Average Arrival Delay by Airline
+SELECT
+AIRLINE,
+ROUND(AVG(ARR_DELAY),2) AS avg_arrival_delay
+FROM flights
+GROUP BY AIRLINE
+ORDER BY avg_arrival_delay DESC;
+
+#5. Top 10 Airlines with Best On-Time Performance
+SELECT
+AIRLINE,
+ROUND(
+100.0 *
+SUM(CASE WHEN ARR_DELAY <= 15 THEN 1 ELSE 0 END)
+/ COUNT(*),
+2
+) AS otp_percentage
+FROM flights
+GROUP BY AIRLINE
+ORDER BY otp_percentage DESC
+LIMIT 10;
+
+#6. Top 10 Delayed Airports
+SELECT
+ORIGIN,
+ROUND(AVG(ARR_DELAY),2) AS avg_delay
+FROM flights
+GROUP BY ORIGIN
+ORDER BY avg_delay DESC
+LIMIT 10;
+
+#7. Most Delay-Prone Destination Airports
+SELECT
+DEST,
+ROUND(AVG(ARR_DELAY),2) AS avg_delay
+FROM flights
+GROUP BY DEST
+ORDER BY avg_delay DESC
+LIMIT 10;
+
+#8. Top 10 Busiest Airports
+SELECT
+ORIGIN,
+COUNT(*) AS total_flights
+FROM flights
+GROUP BY ORIGIN
+ORDER BY total_flights DESC
+LIMIT 10;
+
+#9. Most Delay-Prone Routes
+SELECT
+ORIGIN,
+DEST,
+ROUND(AVG(ARR_DELAY),2) AS avg_delay
+FROM flights
+GROUP BY ORIGIN, DEST
+HAVING COUNT(*) > 10
+ORDER BY avg_delay DESC
+LIMIT 10;
+
+#10. Airlines with Highest Cancellation Rate
+SELECT
+AIRLINE,
+ROUND(
+100.0 * SUM(CANCELLED)/COUNT(*),
+2
+) AS cancellation_rate
+FROM flights
+GROUP BY AIRLINE
+ORDER BY cancellation_rate DESC;
+
+#11. Monthly Delay Trend
+SELECT
+YEAR(FL_DATE) AS year,
+MONTH(FL_DATE) AS month,
+ROUND(AVG(ARR_DELAY),2) AS avg_delay
+FROM flights
+GROUP BY year, month
+ORDER BY year, month;
+
+#12. Monthly Flight Volume
+SELECT
+YEAR(FL_DATE) AS year,
+MONTH(FL_DATE) AS month,
+COUNT(*) AS flights
+FROM flights
+GROUP BY year, month
+ORDER BY year, month;
+
+#13. Average Taxi-Out Time by Airline
+SELECT
+AIRLINE,
+ROUND(AVG(TAXI_OUT),2) AS avg_taxi_out
+FROM flights
+GROUP BY AIRLINE
+ORDER BY avg_taxi_out DESC;
+
+#14. Longest Average Flight Duration
+SELECT
+AIRLINE,
+ROUND(AVG(AIR_TIME),2) AS avg_airtime
+FROM flights
+GROUP BY AIRLINE
+ORDER BY avg_airtime DESC;
+
+#15. Airlines with Highest Diversions
+SELECT
+AIRLINE,
+COUNT(*) AS diverted_flights
+FROM flights
+WHERE DIVERTED = 1
+GROUP BY AIRLINE
+ORDER BY diverted_flights DESC;
+
+#16. Rank Airlines by OTP
+WITH otp AS
+(
+SELECT
+AIRLINE,
+ROUND(
+100.0 *
+SUM(CASE WHEN ARR_DELAY <= 15 THEN 1 ELSE 0 END)
+/
+COUNT(*),
+2
+) AS otp_percentage
+FROM flights
+GROUP BY AIRLINE
+)
+SELECT *,
+DENSE_RANK() OVER(
+ORDER BY otp_percentage DESC
+) AS airline_rank
+FROM otp;
+
+#17. Rank Airports by Delay
+SELECT
+ORIGIN,
+ROUND(AVG(ARR_DELAY),2) avg_delay,
+DENSE_RANK() OVER(
+ORDER BY AVG(ARR_DELAY) DESC
+) airport_rank
+FROM flights
+GROUP BY ORIGIN;
+
+#18. Top Route per Airline
+WITH route_cte AS
+(
+SELECT
+AIRLINE,
+ORIGIN,
+DEST,
+COUNT(*) total_flights,
+ROW_NUMBER() OVER(
+PARTITION BY AIRLINE
+ORDER BY COUNT(*) DESC
+) rn
+FROM flights
+GROUP BY AIRLINE, ORIGIN, DEST
+)
+SELECT *
+FROM route_cte
+WHERE rn = 1;
+
+#19. Running Total Flights by Year
+SELECT
+YEAR(FL_DATE) year,
+COUNT(*) flights,
+SUM(COUNT(*))
+OVER(
+ORDER BY YEAR(FL_DATE)
+) running_total
+FROM flights
+GROUP BY YEAR(FL_DATE);
+
+#20. Delay Cause Analysis
+SELECT
+SUM(DELAY_DUE_CARRIER) Carrier_Delay,
+SUM(DELAY_DUE_WEATHER) Weather_Delay,
+SUM(DELAY_DUE_NAS) NAS_Delay,
+SUM(DELAY_DUE_SECURITY) Security_Delay,
+SUM(DELAY_DUE_LATE_AIRCRAFT) Late_Aircraft_Delay
+FROM flights;
